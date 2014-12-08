@@ -651,6 +651,7 @@ endif
         # WARNING GCH: Commented out -ansi option for c,c++ and dependencies. 
         #              Problems with ACE/TAO
         # CXX           = c++ -ansi
+        ifeq ($(CROSS_COMPILE),)
         CCDEP         = gcc -MM -MG
         CC            = gcc
         CXX           = g++
@@ -666,6 +667,24 @@ endif
         CCS_LIBLIST          := -lCCS -lm 
         CCS_LIBLIST_NOSHARED := $(NOSHARED_ON) -lCCS $(NOSHARED_OFF) -lm 
         CXX_FOR_VERSION_TEST := gcc
+        else
+        CCDEP         := $(CROSS_COMPILE)-gcc -MM -MG
+        CC            := $(CROSS_COMPILE)-gcc
+        CXX           := $(CROSS_COMPILE)-g++
+        LD            := $(CROSS_COMPILE)-g++
+        NOSHARED_ON   := -Xlinker -Bstatic 
+        NOSHARED_OFF  := -Xlinker -Bdynamic
+        SHLIB_EXT     := so
+        RANLIB        := ranlib
+        INC_DEFAULT   := 
+        LIB_DEFAULT   := 
+        XINC_DEFAULT  := 
+        XLIB_DEFAULT  :=   
+        CCS_LIBLIST          := -lCCS -lm 
+        CCS_LIBLIST_NOSHARED := $(NOSHARED_ON) -lCCS $(NOSHARED_OFF) -lm 
+        CXX_FOR_VERSION_TEST := $(CROSS_COMPILE)-gcc
+        RPATH_LINK_DIRS :=
+        endif
 
         ACS_CXX_VERSION := $(shell $(CXX_FOR_VERSION_TEST) -dumpversion) 
 ifeq (cmd,$(findstring cmd,$(SHELL))) 
@@ -1230,6 +1249,10 @@ ifdef ACSROOT
     ifdef MAKE_VXWORKS
         VLTIDL := -I$(ACSROOT)$(VW)/idl $(VLTIDL)
     endif
+    ifneq ($(CROSS_COMPILE),)
+        linker_param = -Wl,
+        RPATH_LINK_DIRS = $(linker_param)-rpath-link=$(ACSROOT)$(VW)/$(LIBDIR) $(linker_param)-rpath-link=$(ALMASW_INSTDIR)/boost/lib
+    endif
 endif
 
 #
@@ -1265,6 +1288,10 @@ ifdef INTLIST
     ifdef MAKE_VXWORKS
         VLTIDL := $(foreach dir, $(DIRLIST), -I$(dir)$(VW)/idl) $(VLTIDL)
     endif
+    ifneq ($(CROSS_COMPILE),)
+        linker_param = -Wl,
+        RPATH_LINK_DIRS = $(foreach dir, $(DIRLIST), $(linker_param)-rpath-link=$(dir)$(VW)/$(LIBDIR)) $(RPATH_LINK_DIRS)
+    endif
 endif
 
 
@@ -1291,6 +1318,10 @@ ifdef INTROOT
     VLTIDL := -I$(INTROOT)/idl $(VLTIDL)
     ifdef MAKE_VXWORKS
         VLTIDL := -I$(INTROOT)$(VW)/idl $(VLTIDL)
+    endif
+    ifneq ($(CROSS_COMPILE),)
+        linker_param = -Wl,
+        RPATH_LINK_DIRS = $(linker_param)-rpath-link=$(INTROOT)$(VW)/$(LIBDIR) $(RPATH_LINK_DIRS)
     endif
 endif
 
@@ -1348,12 +1379,20 @@ endif
     USER_LIB += -lTAO_RT_Notification -lTAO_ReplicationManagerLib -lTAO_Security -lTAO_SmartProxies -lTAO_Strategies -lTAO_Svc_Utils -lTAO_TC
     USER_LIB += -lTAO_TC_IIOP -lTAO_TypeCodeFactory -lTAO_Utils -lTAO_Valuetype -lTAO_ZIOP
     endif
+    ifneq ($(CROSS_COMPILE),)
+        linker_param = -Wl,
+        RPATH_LINK_DIRS += $(linker_param)-rpath-link=$(ACE_ROOT)/lib
+    endif
 ifdef USE_OPENDDS
     TAO_MK_IDL_PATH := $(TAO_MK_IDL_PATH) -I$(DDS_ROOT)
     TAO_IDLFLAGS += -Gdcps
     USER_INC += -I$(DDS_ROOT)
     USER_LIB += -L$(DDS_ROOT)/lib
 endif
+endif
+
+ifneq ($(CROSS_COMPILE),)
+LDFLAGS += $(RPATH_LINK_DIRS)
 endif
 
 #
@@ -1369,6 +1408,10 @@ ifdef MODPATH
     ifeq ($(MODPATH), 1)
         SEARCHPATH := ..:$(SEARCHPATH)
     endif
+endif
+
+ifneq ($(CROSS_COMPILE),)
+LDFLAGS += -Wl,-rpath-link=../lib $(RPATH_LINK_DIRS)
 endif
 ####
 #### GCH, 2004-05-28
